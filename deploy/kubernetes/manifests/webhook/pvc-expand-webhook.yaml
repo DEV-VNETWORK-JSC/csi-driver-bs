@@ -1,0 +1,109 @@
+# PVC Expansion Validation Webhook
+# Blocks PVC expansion when volume is not attached to a workload
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pvc-expand-webhook
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pvc-expand-webhook
+rules:
+  # Read PVCs and PVs
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims", "persistentvolumes"]
+    verbs: ["get", "list"]
+  # Read VolumeAttachments to check if volume is attached
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list"]
+  # Read pods to check if PVC is in use
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pvc-expand-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pvc-expand-webhook
+subjects:
+  - kind: ServiceAccount
+    name: pvc-expand-webhook
+    namespace: kube-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pvc-expand-webhook
+  namespace: kube-system
+spec:
+  ports:
+    - port: 443
+      targetPort: 8443
+  selector:
+    app: pvc-expand-webhook
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pvc-expand-webhook
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pvc-expand-webhook
+  template:
+    metadata:
+      labels:
+        app: pvc-expand-webhook
+    spec:
+      serviceAccountName: pvc-expand-webhook
+      containers:
+        - name: webhook
+          image: k8s.io.reg.vnetwork.dev/techev/csi/pvc-expand-webhook:1.0.0@sha256:2f3f875db7fc6d9f0d2d8261f512092298de1b62d652fa30105c3244d76a9243
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/webhook/certs
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: pvc-expand-webhook-tls
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: pvc-expand-webhook
+webhooks:
+  - name: pvc-expand.vcloud.csi.vnetwork.dev
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Ignore  # Don't block if webhook is unavailable
+    matchPolicy: Equivalent
+    clientConfig:
+      service:
+        name: pvc-expand-webhook
+        namespace: kube-system
+        path: /validate
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURJVENDQWdtZ0F3SUJBZ0lVV2k2S3pZR203dmVlNmp0ZGliYjdlWU1HOXRZd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0lERWVNQndHQTFVRUF3d1ZjSFpqTFdWNGNHRnVaQzEzWldKb2IyOXJMV05oTUI0WERUSTJNREl3TWpBNQpOVFF6T1ZvWERUTTJNREV6TVRBNU5UUXpPVm93SURFZU1Cd0dBMVVFQXd3VmNIWmpMV1Y0Y0dGdVpDMTNaV0pvCmIyOXJMV05oTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFxZ1p5VXNLR2FmdTkKWmJQUGpnek5TZFFiVEJ1RFZWOCtYakhaUm1ObW9SNWp6ZDAyR1pHdFdjM3hLZjZUQ25FaGE3UDdveVBHYkR2bQpxRVoxVzV3V3NreW5Wb1NUM3l2R2pNaGJsczdDR2ZVakFrUU5ydm91NERMYWFYaG1tUjNTREZjS2FaZnF6UkgvCnJMeGpub2NNbmMyS0dTbDljL0o0M3FRd2FtcnJqQjArc2drRitIYTRwSmxZL0ppTkZtald0MFJQaitRSXVMcXUKVWswbjczOG5PcDh3Q1lJcHhSdVVoMGhSY1ZXOUhRalVsTTV4dVBzaGZNNnVvcHVDN0ZFSzY2ZlRyajhZVWhZQwpMYnRad2dabjlwMDN1aUUxM1YraTlQcU53ME9DV2hpT3RHenFjY1hBSTAyRGQ1V0J4ZURkOGJDL2lINHFZTWF4ClA1VXFrUXFkbHdJREFRQUJvMU13VVRBZEJnTlZIUTRFRmdRVUNlVHhvelJ4K1Y1cjk4cnVZVS9DdUNVRE53VXcKSHdZRFZSMGpCQmd3Rm9BVUNlVHhvelJ4K1Y1cjk4cnVZVS9DdUNVRE53VXdEd1lEVlIwVEFRSC9CQVV3QXdFQgovekFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBb3RvV1FqZzBQUDYwdGtMWGV1TTI2Wnk5OGpBQ1ViOHhPZjRKCitremMxWFAyaXBRU08vUnpNL0ZYeVFOYzVUa3UyazAzTytQanJ2K0Z4TTdLSWJsQWFTVnMxSTdoUEdaT1Z5dFkKcU11VjBsM3IvTzdBRGdBWE5iSElPZ3NQYXgxcHRJTUswY1lTOFlzdzJuTkQ2QUNiMW5tdm9qWmcxckxPL3NRVwpKSGFaeCtobmUrT3BOQmEvTTQxSFlQTkNTZDlYSjNxak1ENUJsRFRxME9GSDlOQnZkZ2FON21hYmV4Qi9CZTIxCklBY0lGTXY1M1lnTWFlbWUyQjVyODNYd2lhQlJBbFBCS3BVNTVmMGtxckd2cVBkcis5VDBIOEZuUmRXUVdCTloKVDdWMHZaTE5oTmhEbjVrVlUzVnNGaGFvaUJIeHlQRnFPUWp6WnBmNktIREhWUTJYc0E9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["UPDATE"]
+        resources: ["persistentvolumeclaims"]
+        scope: "Namespaced"
+    # Only validate PVCs from vCloud CSI driver
+    objectSelector:
+      matchExpressions:
+        - key: app.kubernetes.io/managed-by
+          operator: DoesNotExist  # Will validate all PVCs, or add label selector

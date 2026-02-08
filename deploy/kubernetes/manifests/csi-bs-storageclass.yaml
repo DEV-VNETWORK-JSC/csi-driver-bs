@@ -1,0 +1,47 @@
+# Block Storage (BS) StorageClass - Requires BS CSI driver
+# Available storage types: hiops, ssd, hdd
+# Usage: kubectl apply -f csi-bs-storageclass.yaml
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-bs-hiops
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  labels:
+    app.kubernetes.io/instance: bs.csi.vnetwork.dev
+    app.kubernetes.io/part-of: csi-driver-bs
+provisioner: bs.csi.vnetwork.dev
+parameters:
+  type: hiops
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-bs-ssd
+  labels:
+    app.kubernetes.io/instance: bs.csi.vnetwork.dev
+    app.kubernetes.io/part-of: csi-driver-bs
+provisioner: bs.csi.vnetwork.dev
+parameters:
+  type: ssd
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-bs-hdd
+  labels:
+    app.kubernetes.io/instance: bs.csi.vnetwork.dev
+    app.kubernetes.io/part-of: csi-driver-bs
+provisioner: bs.csi.vnetwork.dev
+parameters:
+  type: hdd
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate

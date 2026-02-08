@@ -1,0 +1,13 @@
+# VolumeSnapshotClass for Block Storage (BS) CSI Driver
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-bs-snapclass
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+  labels:
+    app.kubernetes.io/instance: bs.csi.vnetwork.dev
+    app.kubernetes.io/part-of: csi-driver-bs
+driver: bs.csi.vnetwork.dev
+deletionPolicy: Delete
