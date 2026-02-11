@@ -3,7 +3,7 @@
 #
 # Prerequisites:
 # 1. Install VolumeSnapshot CRDs: kubectl apply -f snapshot-crds.yaml
-# 2. Install snapshot-controller: kubectl apply -f snapshot-controller.yaml
+# 2. Install csi-snapshot-controller: kubectl apply -f csi-snapshot-controller.yaml
 # 3. Create cloud-config at /etc/config/cloud-config on all nodes
 #
 # Deploy:
