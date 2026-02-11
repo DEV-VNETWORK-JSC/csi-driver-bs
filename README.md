@@ -118,14 +118,14 @@ Volume snapshots allow you to create point-in-time copies of your persistent vol
 
 #### Prerequisites
 
-Ensure the VolumeSnapshot CRDs and snapshot-controller are installed:
+Ensure the VolumeSnapshot CRDs and csi-snapshot-controller are installed:
 
 ```bash
 # Check CRDs
 kubectl get crd | grep snapshot
 
-# Check snapshot-controller
-kubectl get pods -n kube-system | grep snapshot-controller
+# Check csi-snapshot-controller
+kubectl get pods -n kube-system | grep csi-snapshot-controller
 ```
 
 #### Important Limitation
